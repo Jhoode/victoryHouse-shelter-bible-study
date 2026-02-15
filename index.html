@@ -1,0 +1,1112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Find My Bible Study Center</title>
+
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+
+  <style>
+    * { margin:0; padding:0; box-sizing:border-box; }
+
+    :root{
+      --gold:#f4c15d;
+      --gold2:#d69e2e;
+      --ember:#ff6a00;
+      --deep:#0b0b10;
+      --card:#14131a;
+      --card2:#0f0e14;
+      --muted:rgba(255,255,255,.72);
+    }
+
+    body{
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      min-height:100vh;
+      padding: 22px;
+      color:#fff;
+
+      /* Flyer-like fiery background (pure CSS) */
+      background:
+        radial-gradient(1200px 700px at 20% 15%, rgba(255,140,0,.22), transparent 60%),
+        radial-gradient(900px 600px at 85% 25%, rgba(255,70,0,.18), transparent 60%),
+        radial-gradient(900px 900px at 45% 90%, rgba(255,180,80,.10), transparent 60%),
+        linear-gradient(135deg, #120910 0%, #12070e 25%, #0a0a12 70%, #06060b 100%);
+      position:relative;
+      overflow-x:hidden;
+    }
+
+    /* subtle ember specks */
+    body:before{
+      content:"";
+      position:fixed;
+      inset:0;
+      pointer-events:none;
+      opacity:.35;
+      background-image:
+        radial-gradient(circle at 10% 20%, rgba(255,180,80,.35) 0 1px, transparent 2px),
+        radial-gradient(circle at 30% 55%, rgba(255,90,0,.25) 0 1px, transparent 2px),
+        radial-gradient(circle at 70% 25%, rgba(255,210,120,.25) 0 1px, transparent 2px),
+        radial-gradient(circle at 85% 70%, rgba(255,100,0,.20) 0 1px, transparent 2px);
+      background-size: 240px 240px, 280px 280px, 320px 320px, 360px 360px;
+      mix-blend-mode: screen;
+      filter: blur(.1px);
+    }
+
+    .container{
+      max-width: 1100px;
+      margin: 0 auto;
+      border-radius: 18px;
+      overflow:hidden;
+
+      /* glass + glow */
+      background: rgba(10,10,14,.55);
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(244,193,93,.25);
+      box-shadow:
+        0 14px 60px rgba(0,0,0,.65),
+        0 0 0 1px rgba(255,120,0,.10) inset,
+        0 0 48px rgba(255,120,0,.10);
+    }
+
+    /* ===== HERO HEADER (flyer vibe) ===== */
+    .header{
+      padding: 22px 18px 10px;
+      text-align:center;
+      position:relative;
+    }
+
+    .vh-brand{
+      display:flex;
+      justify-content:center;
+      align-items:center;
+      gap:12px;
+      margin-bottom: 10px;
+    }
+    .vh-logo{
+      height: 58px;
+      width:auto;
+      display:block;
+      filter: drop-shadow(0 8px 18px rgba(0,0,0,.5));
+    }
+
+    .hero{
+      padding: 8px 10px 18px;
+    }
+
+    .need-to{
+      font-style: italic;
+      letter-spacing: .12em;
+      text-transform: lowercase;
+      color: rgba(244,193,93,.95);
+      font-size: 1.05rem;
+      margin-bottom: 4px;
+      text-shadow: 0 10px 30px rgba(0,0,0,.55);
+    }
+
+    .hero-title{
+      margin: 0 auto;
+      max-width: 980px;
+      font-weight: 900;
+      text-transform: uppercase;
+      line-height: .92;
+
+      /* flyer-ish “bold italic” feel without extra fonts */
+      font-family: Impact, Haettenschweiler, 'Arial Narrow Bold', sans-serif;
+      transform: skewX(-10deg);
+      font-size: clamp(2.2rem, 5.5vw, 4.3rem);
+
+      color: #fff;
+      text-shadow:
+        0 16px 60px rgba(0,0,0,.75),
+        0 0 32px rgba(255,110,0,.25);
+      letter-spacing: .02em;
+    }
+
+    .hero-sub{
+      margin-top: 10px;
+      color: rgba(255,255,255,.8);
+      font-style: italic;
+      letter-spacing: .04em;
+    }
+
+    .content{ padding: 18px 18px 28px; }
+
+    .success-message{
+      display:none;
+      background: rgba(56,161,105,.92);
+      color:#fff;
+      padding: 14px 18px;
+      border-radius: 12px;
+      margin: 12px 0 18px;
+      font-weight: 700;
+      text-align:center;
+      border: 1px solid rgba(255,255,255,.22);
+      box-shadow: 0 12px 30px rgba(0,0,0,.45);
+    }
+    .success-message.show{ display:block; }
+
+    /* ===== DARKER FORM PANEL ===== */
+    .input-section{
+      background: linear-gradient(180deg, rgba(20,19,26,.78), rgba(10,10,14,.78));
+      border: 1px solid rgba(244,193,93,.28);
+      border-radius: 16px;
+      padding: 18px;
+      box-shadow:
+        0 18px 55px rgba(0,0,0,.55),
+        0 0 0 1px rgba(255,120,0,.08) inset;
+      position: relative;
+    }
+    .input-section:before{
+      content:"";
+      position:absolute;
+      inset:-2px;
+      border-radius: 16px;
+      pointer-events:none;
+      background: radial-gradient(600px 120px at 50% 0%, rgba(255,150,60,.16), transparent 65%);
+      opacity:.8;
+    }
+
+    .input-section h2{
+      position:relative;
+      color:#fff;
+      margin-bottom: 14px;
+      font-size: 1.35em;
+      font-weight: 900;
+      display:flex;
+      align-items:center;
+      gap:10px;
+      padding-bottom: 10px;
+      border-bottom: 2px solid rgba(244,193,93,.35);
+      text-shadow: 0 10px 30px rgba(0,0,0,.55);
+    }
+
+    .row{
+      display:grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+    @media (max-width: 750px){
+      .row{ grid-template-columns: 1fr; }
+      .vh-logo{ height: 50px; }
+    }
+
+    .form-group{ margin-bottom: 14px; position:relative; }
+    .form-group label{
+      display:block;
+      margin-bottom: 6px;
+      color: rgba(255,255,255,.82);
+      font-weight: 700;
+    }
+    .form-group input{
+      width:100%;
+      padding: 12px 14px;
+      border-radius: 10px;
+      font-size: 1em;
+
+      background: rgba(0,0,0,.35);
+      border: 1px solid rgba(255,255,255,.14);
+      color:#fff;
+      box-shadow: 0 8px 18px rgba(0,0,0,.35) inset;
+    }
+    .form-group input::placeholder{ color: rgba(255,255,255,.45); }
+
+    .form-group input:focus{
+      outline:none;
+      border-color: rgba(244,193,93,.55);
+      box-shadow:
+        0 0 0 3px rgba(244,193,93,.15),
+        0 8px 18px rgba(0,0,0,.35) inset;
+    }
+
+    .input-hint{
+      font-size: .85em;
+      color: rgba(255,255,255,.62);
+      margin-top: 6px;
+      font-style: italic;
+    }
+
+    .btn{
+      width:100%;
+      padding: 14px;
+      border:none;
+      border-radius: 12px;
+      font-size: 1.02em;
+      font-weight: 900;
+      cursor:pointer;
+      transition: transform .15s ease, box-shadow .15s ease, filter .15s ease;
+      text-transform: uppercase;
+      letter-spacing: .04em;
+    }
+
+    .btn.primary{
+      background: linear-gradient(135deg, #ffb34a 0%, #ff6a00 55%, #d63800 100%);
+      color:#1a0f07;
+      box-shadow: 0 14px 30px rgba(0,0,0,.45);
+    }
+    .btn.primary:hover{
+      transform: translateY(-1px);
+      filter: brightness(1.03);
+      box-shadow: 0 18px 38px rgba(0,0,0,.55);
+    }
+
+    .btn.danger{
+      background: linear-gradient(135deg, #b31212 0%, #6f0b0b 100%);
+      color:#fff;
+      box-shadow: 0 14px 30px rgba(0,0,0,.45);
+    }
+    .btn.danger:hover{
+      transform: translateY(-1px);
+      box-shadow: 0 18px 38px rgba(0,0,0,.55);
+    }
+
+    .btn.secondary{
+      background: rgba(255,255,255,.06);
+      border: 1px solid rgba(244,193,93,.35);
+      color: rgba(255,255,255,.9);
+    }
+    .btn.secondary:hover{
+      transform: translateY(-1px);
+      box-shadow: 0 18px 38px rgba(0,0,0,.45);
+    }
+
+    .loading-spinner{
+      display:none;
+      text-align:center;
+      padding: 12px;
+      color: rgba(255,255,255,.85);
+    }
+    .loading-spinner.show{ display:block; }
+    .spinner{
+      border: 3px solid rgba(255,255,255,.18);
+      border-top: 3px solid rgba(244,193,93,.95);
+      border-radius: 50%;
+      width: 28px;
+      height: 28px;
+      animation: spin 1s linear infinite;
+      margin: 0 auto 8px;
+    }
+    @keyframes spin{ 0%{transform:rotate(0deg)} 100%{transform:rotate(360deg)} }
+
+    /* ===== RESULT CARD (keep your logic, just style) ===== */
+    .group-display{
+      display:none;
+      margin-top: 18px;
+      background: linear-gradient(180deg, rgba(20,19,26,.70), rgba(10,10,14,.80));
+      border-radius: 16px;
+      padding: 18px;
+      border: 1px solid rgba(244,193,93,.25);
+      box-shadow: 0 18px 55px rgba(0,0,0,.55);
+    }
+    .group-display.show{ display:block; }
+
+    .group-display h3{
+      text-align:center;
+      margin-bottom: 12px;
+      padding-bottom: 10px;
+      border-bottom: 2px solid rgba(244,193,93,.35);
+      color:#fff;
+      text-shadow: 0 10px 30px rgba(0,0,0,.55);
+    }
+
+    .group-info{
+      background: rgba(255,255,255,.06);
+      border: 1px solid rgba(255,255,255,.10);
+      padding: 16px;
+      border-radius: 12px;
+    }
+
+    .group-assignment-statement{
+      font-size: 1.2em;
+      color: var(--gold);
+      font-weight: 900;
+      text-align:center;
+      margin: 14px 0;
+      padding: 14px;
+      background: rgba(244,193,93,.08);
+      border-radius: 12px;
+      border: 1px solid rgba(244,193,93,.35);
+    }
+
+    .meeting-location{
+      background: rgba(244,193,93,.08);
+      padding: 14px;
+      border-radius: 12px;
+      margin-top: 12px;
+      border: 1px solid rgba(244,193,93,.25);
+      color: rgba(255,255,255,.9);
+    }
+
+    .meeting-location h4{
+      color: var(--gold);
+      display:flex;
+      gap:8px;
+      align-items:center;
+      margin-bottom: 8px;
+    }
+
+    .members-list{
+      margin-top: 16px;
+      border-top: 1px solid rgba(255,255,255,.12);
+      padding-top: 12px;
+    }
+    .member-item{
+      background: rgba(255,255,255,.06);
+      padding: 10px 12px;
+      border-radius: 10px;
+      margin-bottom: 8px;
+      border-left: 4px solid rgba(244,193,93,.65);
+    }
+
+    .distance-info{
+      margin-top: 12px;
+      background: rgba(255,255,255,.06);
+      padding: 12px;
+      border-radius: 12px;
+      border: 1px solid rgba(255,255,255,.10);
+    }
+
+    .section{
+      margin-top: 22px;
+      padding-top: 18px;
+      border-top: 1px solid rgba(255,255,255,.10);
+    }
+    .section h3{
+      text-align:center;
+      color:#fff;
+      margin-bottom: 12px;
+      text-shadow: 0 10px 30px rgba(0,0,0,.55);
+    }
+
+    #map{
+      height: 480px;
+      width:100%;
+      border-radius: 14px;
+      margin-top: 12px;
+      box-shadow: 0 18px 55px rgba(0,0,0,.55);
+      border: 1px solid rgba(255,255,255,.08);
+    }
+
+    /* Leaflet popup tweak so it fits theme */
+    .leaflet-popup-content-wrapper{
+      background: rgba(12,12,16,.95);
+      color:#fff;
+      border: 1px solid rgba(244,193,93,.25);
+    }
+    .leaflet-popup-tip{ background: rgba(12,12,16,.95); }
+  </style>
+</head>
+
+<body>
+  <div class="container">
+
+    <div class="header">
+      <div class="vh-brand">
+        <!-- ✅ Put your logo file in the same folder as index.html -->
+        <img src="vh-chicago.png" alt="Victory House Chicago" class="vh-logo" />
+      </div>
+
+      <div class="hero">
+        <div class="need-to">need to</div>
+        <div class="hero-title">FIND MY<br/>BIBLE STUDY<br/>CENTER</div>
+        <div class="hero-sub">The Shelter Bible Study • Illinois Region</div>
+      </div>
+    </div>
+
+    <div class="content">
+      <div class="success-message" id="successMessage">✅ Information Saved Successfully!</div>
+
+      <div class="input-section">
+        <h2>📝 Enter Your Information</h2>
+
+        <form id="userForm">
+          <div class="row">
+            <div class="form-group">
+              <label for="firstName">First Name</label>
+              <input type="text" id="firstName" required placeholder="Enter your first name" />
+            </div>
+
+            <div class="form-group">
+              <label for="lastName">Last Name</label>
+              <input type="text" id="lastName" required placeholder="Enter your last name" />
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="phone">Phone Number</label>
+            <input type="text" id="phone" placeholder="e.g., (555) 123-4567" />
+            <div class="input-hint">Please enter phone number for group communication</div>
+          </div>
+
+          <div class="form-group">
+            <label for="location">Location (Illinois)</label>
+            <input type="text" id="location" required placeholder="e.g., 123 Main St, Chicago, IL 60639" />
+            <div class="input-hint">Please include your complete Illinois address with ZIP code</div>
+          </div>
+
+          <div class="loading-spinner" id="loadingSpinner">
+            <div class="spinner"></div>
+            <p>Working...</p>
+          </div>
+
+          <div class="row">
+            <button type="submit" class="btn primary" id="submitBtn">🙏 Submit & Find My Group</button>
+            <button type="button" class="btn danger" id="resetBtn">🗑️ Reset Data</button>
+          </div>
+        </form>
+      </div>
+
+      <div class="group-display" id="groupDisplay">
+        <h3>🎉 Your Assigned Group</h3>
+
+        <div class="group-info">
+          <div id="welcomeBlock" style="margin-bottom:16px;"></div>
+
+          <div class="group-assignment-statement">
+            Your group is '<span id="displayGroup"></span>'
+          </div>
+
+          <div id="meetingLocationContainer"></div>
+
+          <div class="members-list">
+            <h4 style="color:var(--gold);">👥 Your Group Members:</h4>
+            <div id="membersContainer"></div>
+          </div>
+
+          <div class="distance-info" id="distanceInfo" style="display:none;"></div>
+
+          <button type="button" class="btn secondary" id="addAnotherBtn" style="margin-top: 14px;">
+            ➕ Add Another Person
+          </button>
+        </div>
+      </div>
+
+      <div class="section" id="mapSection" style="display:none;">
+        <h3>🗺️ Group Locations Map</h3>
+        <div id="map"></div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // ============================================================
+    // CONFIG (Google Sheets via Apps Script Web App)
+    // ============================================================
+    // ✅ Replace with your deployed Apps Script "exec" URL
+    const API_URL = "https://script.google.com/macros/s/AKfycbxDMYYqm32pjCTly810-86T1NX9b964tazvCFBcOBOrXoTywCq_gu-NwhFQuKGUV5GDLQ/exec";
+    // ✅ Must match ADMIN_KEY in Apps Script
+    const ADMIN_KEY = "VICTORYHOUSE";
+
+    // Local backup cache (if central fetch fails)
+    const STORAGE_KEY_LOCAL_FALLBACK = "shelterBibleStudy_local_backup_v3";
+    // Cache for meeting-center geocoding (optional)
+    const STORAGE_KEY_CENTER_CACHE = "shelterBibleStudy_center_cache_v1";
+
+    // ============================================================
+    // MEETING CENTERS
+    // ============================================================
+    const groupLocations = {
+      "Sabaoth": {
+        addresses: ["497 N Frieh Drive, Romeoville, IL 60446"],
+        coordinates: [{ lat: 41.6426924817436, lon: -88.11747834252468 }]
+      },
+      "Ever Present Help": {
+        addresses: ["8401 Foxborough Way, Joliet, IL 60431"],
+        coordinates: [{ lat: 41.5547979584487, lon: -88.28706610266778 }]
+      },
+      "Kaddosh": {
+        addresses: ["1336 Greenwillow Lane, Glenview, IL 60025"],
+        coordinates: [{ lat: 42.07986129579979, lon: -87.80749203148268 }]
+      },
+      "unQuestionable God": {
+        addresses: ["25549 W Cerena Cir, Plainfield, IL 60586"],
+        coordinates: [{ lat: 41.57714313662913, lon: -88.23776047383151 }]
+      },
+      "Indescribable God": {
+        addresses: ["361 S Cornerstone Dr, Volo, IL 60020"],
+        coordinates: [{ lat: 42.34359885498467, lon: -88.16611895420468 }]
+      },
+      "Unfailing Helper": {
+        addresses: ["6127 N Talman Ave, Chicago, IL 60659"],
+        coordinates: [{ lat: 41.99310693762487, lon: -87.69552561476958 }]
+      }
+    };
+
+    // ============================================================
+    // STATE
+    // ============================================================
+    let allPeople = [];
+    let map = null;
+    let memberMarkers = [];
+    let meetingMarkers = [];
+
+    // ============================================================
+    // UTILITIES
+    // ============================================================
+    function escapeHtml(str) {
+      return String(str ?? "")
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
+    }
+
+    function showSpinner(text = "Working...") {
+      document.getElementById("loadingSpinner").classList.add("show");
+      document.getElementById("loadingSpinner").querySelector("p").textContent = text;
+      document.getElementById("submitBtn").disabled = true;
+    }
+    function hideSpinner() {
+      document.getElementById("loadingSpinner").classList.remove("show");
+      document.getElementById("submitBtn").disabled = false;
+    }
+
+    function showSuccess() {
+      const el = document.getElementById("successMessage");
+      el.classList.add("show");
+      setTimeout(() => el.classList.remove("show"), 2500);
+    }
+
+    function extractILZipCode(location) {
+      const match = String(location ?? "").match(/\b(60\d{3})\b/);
+      return match ? match[1] : null;
+    }
+
+    function normalizePhone(phone) {
+      const digits = String(phone ?? "").replace(/\D/g, "");
+      if (digits.length === 10) return digits;
+      if (digits.length === 11 && digits.startsWith("1")) return digits.slice(1);
+      return null;
+    }
+
+    function formatPhone(digits) {
+      const d = normalizePhone(digits);
+      if (!d) return "";
+      return `(${d.slice(0,3)}) ${d.slice(3,6)}-${d.slice(6)}`;
+    }
+
+    function normalizeCoords(c) {
+      if (!c) return null;
+      const lat = c.lat ?? c.latitude;
+      const lon = c.lon ?? c.lng ?? c.longitude;
+      const nLat = Number(lat);
+      const nLon = Number(lon);
+      if (!Number.isFinite(nLat) || !Number.isFinite(nLon)) return null;
+      return { lat: nLat, lon: nLon };
+    }
+
+    function haversineMiles(lat1, lon1, lat2, lon2) {
+      lat1 = Number(lat1); lon1 = Number(lon1);
+      lat2 = Number(lat2); lon2 = Number(lon2);
+      if (![lat1, lon1, lat2, lon2].every(Number.isFinite)) return null;
+
+      const R = 3958.8;
+      const toRad = (x) => (x * Math.PI) / 180;
+      const dLat = toRad(lat2 - lat1);
+      const dLon = toRad(lon2 - lon1);
+
+      const a =
+        Math.sin(dLat / 2) ** 2 +
+        Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) *
+        Math.sin(dLon / 2) ** 2;
+
+      return 2 * R * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    }
+
+    function ordinal(n) {
+      const num = Number(n);
+      if (!Number.isFinite(num)) return String(n);
+      const s = ["th", "st", "nd", "rd"];
+      const v = num % 100;
+      return num + (s[(v - 20) % 10] || s[v] || s[0]);
+    }
+
+    function saveLocalFallback() {
+      try { localStorage.setItem(STORAGE_KEY_LOCAL_FALLBACK, JSON.stringify(allPeople)); } catch {}
+    }
+    function loadLocalFallback() {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY_LOCAL_FALLBACK);
+        const parsed = raw ? JSON.parse(raw) : [];
+        return Array.isArray(parsed) ? parsed : [];
+      } catch { return []; }
+    }
+
+    // ============================================================
+    // CENTRAL API
+    // ============================================================
+    async function apiSaveMember(person) {
+      if (!API_URL || API_URL.includes("PASTE_YOUR")) {
+        throw new Error("API_URL is not set. Paste your Apps Script Web App URL into API_URL.");
+      }
+      const res = await fetch(API_URL, {
+        method: "POST",
+        headers: { "Content-Type": "text/plain;charset=utf-8" },
+        body: JSON.stringify(person),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data.ok) throw new Error(data.error || "Failed to save member to central sheet.");
+      return data;
+    }
+
+    async function apiFetchMembers() {
+      if (!API_URL || API_URL.includes("PASTE_YOUR")) {
+        throw new Error("API_URL is not set. Paste your Apps Script Web App URL into API_URL.");
+      }
+      const url = `${API_URL}?action=members&key=${encodeURIComponent(ADMIN_KEY)}`;
+      const res = await fetch(url);
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data.ok) throw new Error(data.error || "Failed to fetch members from central sheet.");
+      return data.rows || [];
+    }
+
+    // ============================================================
+    // GEOCODING (Photon)
+    // ============================================================
+    async function geocodeAddress(address) {
+      try {
+        const url = "https://photon.komoot.io/api/?q=" + encodeURIComponent(address) + "&limit=1";
+        const res = await fetch(url, { headers: { Accept: "application/json" } });
+        const data = await res.json();
+
+        if (data?.features?.length) {
+          const [lon, lat] = data.features[0].geometry.coordinates;
+          return normalizeCoords({ lat, lon });
+        }
+        return null;
+      } catch (e) {
+        console.error("Geocode error:", e);
+        return null;
+      }
+    }
+
+    async function hydrateMeetingCenterCoordsOnce() {
+      let cache = {};
+      try { cache = JSON.parse(localStorage.getItem(STORAGE_KEY_CENTER_CACHE) || "{}"); } catch { cache = {}; }
+      let changed = false;
+
+      for (const groupName in groupLocations) {
+        const g = groupLocations[groupName];
+        g.coordinates = g.coordinates || [];
+        g.addresses = g.addresses || [];
+
+        for (let i = 0; i < g.addresses.length; i++) {
+          const addr = g.addresses[i];
+          const existing = normalizeCoords(g.coordinates[i]);
+          if (existing) continue;
+
+          const cacheKey = `${groupName}::${addr}`;
+          if (cache[cacheKey]) {
+            const c = normalizeCoords(cache[cacheKey]);
+            if (c) { g.coordinates[i] = c; continue; }
+          }
+
+          const c = await geocodeAddress(addr);
+          if (c) {
+            g.coordinates[i] = c;
+            cache[cacheKey] = c;
+            changed = true;
+          }
+        }
+      }
+
+      if (changed) {
+        try { localStorage.setItem(STORAGE_KEY_CENTER_CACHE, JSON.stringify(cache)); } catch {}
+      }
+    }
+
+    // ============================================================
+    // GROUP ASSIGNMENT
+    // ============================================================
+    function findNearestGroup(userCoordinatesRaw) {
+      const userCoordinates = normalizeCoords(userCoordinatesRaw);
+      if (!userCoordinates) return { groupName: null, address: null, distance: null };
+
+      let nearestGroup = null;
+      let nearestAddress = null;
+      let minDistance = Infinity;
+
+      for (const groupName in groupLocations) {
+        const group = groupLocations[groupName];
+
+        (group.coordinates || []).forEach((coordRaw, idx) => {
+          const coord = normalizeCoords(coordRaw);
+          if (!coord) return;
+
+          const d = haversineMiles(userCoordinates.lat, userCoordinates.lon, coord.lat, coord.lon);
+          if (d === null) return;
+
+          if (d < minDistance) {
+            minDistance = d;
+            nearestGroup = groupName;
+            nearestAddress = (group.addresses || [])[idx] || null;
+          }
+        });
+      }
+
+      return {
+        groupName: nearestGroup,
+        address: nearestAddress,
+        distance: Number.isFinite(minDistance) ? minDistance : null
+      };
+    }
+
+    function normalizeMembersFromSheet(rows) {
+      return (rows || []).map((m) => {
+        const lat = Number(m.lat);
+        const lon = Number(m.lon);
+        const d1 = Number(m.distanceToGroup);
+        const d2 = Number(m.distanceMiles);
+        const distance = Number.isFinite(d1) ? d1 : (Number.isFinite(d2) ? d2 : null);
+
+        return {
+          timestamp: m.timestamp || "",
+          firstName: m.firstName || "",
+          lastName: m.lastName || "",
+          phone: normalizePhone(m.phone) || (m.phone || ""),
+          location: m.location || "",
+          zipCode: m.zipCode || "",
+          group: m.group || "",
+          groupAddress: m.groupAddress || "",
+          distanceToGroup: distance,
+          coordinates: (Number.isFinite(lat) && Number.isFinite(lon)) ? { lat, lon } : null
+        };
+      });
+    }
+
+    // ============================================================
+    // MAP
+    // ============================================================
+    function initMap() {
+      if (map) return;
+      map = L.map("map").setView([41.8781, -87.6298], 8);
+      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+        attribution: "© OpenStreetMap contributors",
+        maxZoom: 18
+      }).addTo(map);
+    }
+
+    function clearMarkers(list) {
+      if (!map) return;
+      list.forEach((m) => map.removeLayer(m));
+      list.length = 0;
+    }
+
+    function addMemberMarker(person) {
+      if (!map) return;
+      const c = normalizeCoords(person.coordinates);
+      if (!c) return;
+
+      const marker = L.circleMarker([c.lat, c.lon], {
+        radius: 8,
+        fillColor: "#ff7a10",
+        color: "#fff",
+        weight: 2,
+        opacity: 1,
+        fillOpacity: 0.85
+      }).addTo(map);
+
+      marker.bindPopup(
+        `<strong>${escapeHtml(person.firstName)} ${escapeHtml(person.lastName)}</strong><br>
+         Phone: ${escapeHtml(formatPhone(person.phone))}<br>
+         Group: ${escapeHtml(person.group)}<br>
+         ZIP: ${escapeHtml(person.zipCode)}`
+      );
+
+      memberMarkers.push(marker);
+    }
+
+    function addMeetingCenterMarkers() {
+      if (!map) return;
+      clearMarkers(meetingMarkers);
+
+      for (const groupName in groupLocations) {
+        const g = groupLocations[groupName];
+
+        (g.coordinates || []).forEach((coordRaw, idx) => {
+          const coord = normalizeCoords(coordRaw);
+          if (!coord) return;
+
+          const marker = L.marker([coord.lat, coord.lon], {
+            icon: L.divIcon({
+              className: "meeting-center",
+              html: `<div style="background:rgba(244,193,93,.95);color:#1a0f07;width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:18px;border:3px solid rgba(255,255,255,.9);box-shadow:0 6px 18px rgba(0,0,0,.45)">⭐</div>`,
+              iconSize: [30, 30]
+            })
+          }).addTo(map);
+
+          marker.bindPopup(
+            `<strong>${escapeHtml(groupName)}</strong><br>${escapeHtml((g.addresses || [])[idx] || "")}<br><em>Meeting Center</em>`
+          );
+
+          meetingMarkers.push(marker);
+        });
+      }
+    }
+
+    function fitMapToAllMarkers() {
+      if (!map) return;
+      const coords = [];
+
+      allPeople.forEach((p) => {
+        const c = normalizeCoords(p.coordinates);
+        if (c) coords.push([c.lat, c.lon]);
+      });
+
+      for (const groupName in groupLocations) {
+        (groupLocations[groupName].coordinates || []).forEach((raw) => {
+          const c = normalizeCoords(raw);
+          if (c) coords.push([c.lat, c.lon]);
+        });
+      }
+
+      if (coords.length === 0) return;
+      const bounds = L.latLngBounds(coords);
+      map.fitBounds(bounds, { padding: [40, 40] });
+    }
+
+    function refreshMapFromState() {
+      if (allPeople.length === 0) return;
+      document.getElementById("mapSection").style.display = "block";
+      initMap();
+
+      clearMarkers(memberMarkers);
+      allPeople.forEach((p) => addMemberMarker(p));
+
+      addMeetingCenterMarkers();
+      fitMapToAllMarkers();
+    }
+
+    // ============================================================
+    // UI RENDER
+    // ============================================================
+    function renderWelcome(person) {
+      const welcomeHTML = `
+        <div style="font-size:1.1em; line-height:1.6; color:rgba(255,255,255,.92);">
+          <strong>Hi ${escapeHtml(person.firstName)},</strong><br>
+          Thank you for registering 🙏<br><br>
+          Based on the location provided, you belong to group
+          <strong style="color:var(--gold);">${escapeHtml(person.group)}</strong>.
+        </div>
+      `;
+      document.getElementById("welcomeBlock").innerHTML = welcomeHTML;
+    }
+
+    function renderMeeting(person) {
+      const distText = (typeof person.distanceToGroup === "number")
+        ? `${person.distanceToGroup.toFixed(1)} miles`
+        : "N/A";
+
+      const meetingHTML = `
+        <div class="meeting-location">
+          <h4><span>📍</span> Meeting Location</h4>
+          <p><strong>Address:</strong> ${escapeHtml(person.groupAddress ?? "")}</p>
+          <p><strong>Meeting Time:</strong> First & Last Fridays at 08:00 PM</p>
+          <p><strong>Distance:</strong> ${escapeHtml(distText)}</p>
+        </div>
+      `;
+      document.getElementById("meetingLocationContainer").innerHTML = meetingHTML;
+    }
+
+    function renderMembersBlock(person, groupMembers) {
+      const membersContainer = document.getElementById("membersContainer");
+
+      const sorted = [...groupMembers].sort((a, b) => (a.timestamp || "").localeCompare(b.timestamp || ""));
+      const meIndex = sorted.findIndex((m) => m.timestamp === person.timestamp && m.firstName === person.firstName && m.lastName === person.lastName);
+
+      const myPosition = meIndex >= 0 ? meIndex + 1 : sorted.length;
+      const total = sorted.length;
+      const others = sorted.filter((m, idx) => idx !== meIndex);
+
+      const MAX_OTHERS = 20;
+      const shown = others.slice(0, MAX_OTHERS);
+
+      const header = `
+        <div class="member-item" style="border-left-color:rgba(56,161,105,.95);">
+          <strong>You’re the ${escapeHtml(ordinal(myPosition))} member</strong> in this group ✅<br>
+          <small style="color:rgba(255,255,255,.75);">Total members in your group: ${escapeHtml(total)}</small>
+        </div>
+      `;
+
+      let listHTML = "";
+      if (shown.length === 0) {
+        listHTML = `<div class="member-item">No other members yet. 🎉</div>`;
+      } else {
+        listHTML = `
+          <div class="member-item" style="border-left-color:rgba(244,193,93,.95);">
+            <strong>Other members in your group include:</strong>
+          </div>
+          ${shown.map((m) => `
+            <div class="member-item">
+              ${escapeHtml(m.firstName)} ${escapeHtml(m.lastName)}
+              ${m.phone ? `<br><small style="color:rgba(255,255,255,.75);">📞 ${escapeHtml(formatPhone(m.phone))}</small>` : ""}
+            </div>
+          `).join("")}
+          ${others.length > MAX_OTHERS ? `<div class="member-item"><small style="color:rgba(255,255,255,.75);">…and ${escapeHtml(others.length - MAX_OTHERS)} more.</small></div>` : ""}
+        `;
+      }
+
+      membersContainer.innerHTML = header + listHTML;
+    }
+
+    function displayGroupAssignment(person) {
+      document.getElementById("displayGroup").textContent = person.group || "";
+
+      renderWelcome(person);
+      renderMeeting(person);
+
+      const groupMembers = allPeople.filter((p) => p.group === person.group);
+      renderMembersBlock(person, groupMembers);
+
+      document.getElementById("groupDisplay").classList.add("show");
+      document.getElementById("groupDisplay").scrollIntoView({ behavior: "smooth", block: "nearest" });
+    }
+
+    // ============================================================
+    // EVENTS
+    // ============================================================
+    async function handleSubmit(event) {
+      event.preventDefault();
+
+      const firstName = document.getElementById("firstName").value.trim();
+      const lastName = document.getElementById("lastName").value.trim();
+      const phoneRaw = document.getElementById("phone").value.trim();
+      const location = document.getElementById("location").value.trim();
+
+      const phoneDigits = normalizePhone(phoneRaw);
+      if (!phoneDigits) {
+        alert("Please enter a valid 10-digit US phone number.");
+        return;
+      }
+
+      const zipCode = extractILZipCode(location);
+      if (!zipCode) {
+        alert("Please enter a valid Illinois address with a ZIP code (60xxx format).");
+        return;
+      }
+
+      showSpinner("Geocoding your location...");
+      const coordinates = await geocodeAddress(location);
+
+      if (!coordinates) {
+        hideSpinner();
+        alert("Unable to geocode your address. Please check it and try again.");
+        return;
+      }
+
+      showSpinner("Assigning your group...");
+      const assignment = findNearestGroup(coordinates);
+
+      if (!assignment.groupName) {
+        hideSpinner();
+        alert("Could not assign a group (meeting center coordinates may be missing).");
+        return;
+      }
+
+      const person = {
+        firstName,
+        lastName,
+        phone: phoneDigits,
+        location,
+        zipCode,
+        group: assignment.groupName,
+        groupAddress: assignment.address,
+        distanceToGroup: assignment.distance,
+        coordinates,
+        timestamp: new Date().toISOString()
+      };
+
+      try {
+        showSpinner("Saving your registration...");
+        await apiSaveMember(person);
+        showSuccess();
+      } catch (err) {
+        console.error(err);
+        hideSpinner();
+        alert("Central save failed. We’ll show local fallback, but please try again later.\n\n" + err.message);
+
+        allPeople = loadLocalFallback();
+        allPeople.push(person);
+        saveLocalFallback();
+        displayGroupAssignment(person);
+        refreshMapFromState();
+        return;
+      }
+
+      try {
+        showSpinner("Loading latest group members...");
+        const rows = await apiFetchMembers();
+        allPeople = normalizeMembersFromSheet(rows);
+        saveLocalFallback();
+      } catch (err) {
+        console.warn("Central refresh failed; using local fallback:", err);
+        allPeople = loadLocalFallback();
+        allPeople.push(person);
+        saveLocalFallback();
+      }
+
+      hideSpinner();
+      displayGroupAssignment(person);
+      refreshMapFromState();
+    }
+
+    function handleAddAnother() {
+      document.getElementById("userForm").reset();
+      document.getElementById("groupDisplay").classList.remove("show");
+      document.getElementById("firstName").focus();
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+
+    function handleReset() {
+      if (!confirm("Clear LOCAL cached data on this device?\n\nThis does NOT delete the Google Sheet records.")) return;
+
+      allPeople = [];
+      try { localStorage.removeItem(STORAGE_KEY_LOCAL_FALLBACK); } catch {}
+
+      document.getElementById("groupDisplay").classList.remove("show");
+      document.getElementById("mapSection").style.display = "none";
+
+      if (map) {
+        clearMarkers(memberMarkers);
+        clearMarkers(meetingMarkers);
+      }
+
+      alert("Local cached data cleared.");
+    }
+
+    // ============================================================
+    // INIT
+    // ============================================================
+    document.addEventListener("DOMContentLoaded", async () => {
+      document.getElementById("userForm").addEventListener("submit", handleSubmit);
+      document.getElementById("addAnotherBtn").addEventListener("click", handleAddAnother);
+      document.getElementById("resetBtn").addEventListener("click", handleReset);
+
+      try { await hydrateMeetingCenterCoordsOnce(); } catch {}
+
+      const fallback = loadLocalFallback();
+      if (fallback.length > 0) {
+        allPeople = fallback.map(p => ({ ...p, coordinates: normalizeCoords(p.coordinates) }));
+        refreshMapFromState();
+      }
+
+      if (API_URL && !API_URL.includes("PASTE_YOUR")) {
+        try {
+          showSpinner("Loading existing registrations...");
+          const rows = await apiFetchMembers();
+          allPeople = normalizeMembersFromSheet(rows);
+          saveLocalFallback();
+          hideSpinner();
+          refreshMapFromState();
+        } catch (err) {
+          console.warn("Central preload failed (using local fallback):", err);
+          hideSpinner();
+        }
+      }
+    });
+  </script>
+</body>
+</html>
